@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Models — don't commit large binary files
+*.pkl
+*.pth
+*.pt
+*.onnx
+
+# Data — WAV files are too large for git
+data/
+*.wav
+*.mp3
+
+# Environment
+.env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Inference event outputs
+events/
