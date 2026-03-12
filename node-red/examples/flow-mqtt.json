@@ -1,0 +1,120 @@
+[
+    {
+        "id": "flow-mqtt",
+        "type": "tab",
+        "label": "Ultrasonic → MQTT",
+        "info": "Monitors WAV files from the Ultramic 384K EVO and publishes classification results via MQTT.\n\nAbnormal detections include a base64 spectrogram image.\nNormal readings are published without an image."
+    },
+    {
+        "id": "watch-node",
+        "type": "watch",
+        "z": "flow-mqtt",
+        "name": "Watch for WAVs",
+        "files": "/tmp/ultrasonic-incoming/",
+        "recursive": false,
+        "x": 140,
+        "y": 200,
+        "wires": [["filter-wav"]]
+    },
+    {
+        "id": "filter-wav",
+        "type": "switch",
+        "z": "flow-mqtt",
+        "name": "Filter .wav only",
+        "property": "payload",
+        "rules": [
+            { "t": "regex", "v": "\\.wav$", "vt": "str" }
+        ],
+        "x": 340,
+        "y": 200,
+        "wires": [["classifier"]]
+    },
+    {
+        "id": "classifier",
+        "type": "ultrasonic-classifier",
+        "z": "flow-mqtt",
+        "name": "Classify Audio",
+        "modelPath": "/home/pi/models/ultrasonic_model.pt",
+        "metaPath": "",
+        "pythonPath": "python3",
+        "inferScript": "/home/pi/ultrasonic_infer.py",
+        "threshold": 0.80,
+        "outDir": "/tmp/ultrasonic-events",
+        "x": 560,
+        "y": 200,
+        "wires": [["mqtt-abnormal", "debug-abnormal"], ["mqtt-normal", "debug-normal"]]
+    },
+    {
+        "id": "mqtt-abnormal",
+        "type": "mqtt out",
+        "z": "flow-mqtt",
+        "name": "MQTT Abnormal",
+        "topic": "uv/panels/abnormal",
+        "qos": "1",
+        "retain": "true",
+        "broker": "mqtt-broker",
+        "x": 790,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "mqtt-normal",
+        "type": "mqtt out",
+        "z": "flow-mqtt",
+        "name": "MQTT Normal",
+        "topic": "uv/panels/normal",
+        "qos": "0",
+        "retain": "false",
+        "broker": "mqtt-broker",
+        "x": 790,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "debug-abnormal",
+        "type": "debug",
+        "z": "flow-mqtt",
+        "name": "Debug Abnormal",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "complete": "payload",
+        "x": 790,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "debug-normal",
+        "type": "debug",
+        "z": "flow-mqtt",
+        "name": "Debug Normal",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "complete": "payload",
+        "x": 790,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "mqtt-broker",
+        "type": "mqtt-broker",
+        "name": "Local MQTT",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "ultrasonic-pi",
+        "autoConnect": true,
+        "keepalive": "60",
+        "cleansession": true
+    },
+    {
+        "id": "comment-mqtt",
+        "type": "comment",
+        "z": "flow-mqtt",
+        "name": "MQTT Output — Ultrasonic UV Panel Monitor",
+        "info": "Publishes to:\n- uv/panels/abnormal (QoS 1, retained) — with base64 spectrogram image\n- uv/panels/normal (QoS 0) — status only\n\nEdit the MQTT broker node to set your broker address.",
+        "x": 260,
+        "y": 80,
+        "wires": []
+    }
+]

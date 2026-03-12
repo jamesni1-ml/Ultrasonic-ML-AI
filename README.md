@@ -42,7 +42,17 @@ Ultrasonic-ML-AI/
 ├── requirements.txt            # Training dependencies (GPU workstation)
 ├── requirements-pi.txt         # Inference dependencies (Raspberry Pi 4)
 ├── ultrasonic_training.ipynb   # Training notebook (Jupyter)
-└── ultrasonic_infer.py         # Inference script for Pi 4
+├── ultrasonic_infer.py         # Inference script for Pi 4
+└── node-red/                   # Node-RED integration
+    ├── ultrasonic-classifier.js    # Custom node (JS)
+    ├── ultrasonic-classifier.html  # Node editor UI
+    ├── package.json                # Node-RED package
+    ├── README.md                   # Node-RED setup guide
+    └── examples/                   # Ready-to-import flows
+        ├── flow-mqtt.json
+        ├── flow-tcp.json
+        ├── flow-bluetooth.json
+        └── flow-all-outputs.json
 ```
 
 After training, the notebook exports:
@@ -138,6 +148,36 @@ arecord -l
 arecord -D hw:X,0 -f S16_LE -r 384000 -c 1 -d 5 test.wav
 ```
 *(Replace `X` with your device number from `arecord -l`)*
+
+## Node-RED Integration
+
+A custom Node-RED node is included for visual, low-code deployment on the Pi.
+
+### Output options
+
+| Output | Protocol | Abnormal payload | Normal payload |
+|--------|----------|-----------------|----------------|
+| **MQTT** | MQTT publish | JSON + base64 spectrogram PNG | JSON status only |
+| **TCP** | TCP socket | JSON + base64 spectrogram PNG | JSON status only |
+| **Bluetooth** | BLE GATT | Compact JSON (no image — MTU limit) | Compact JSON |
+
+### Quick setup
+
+```bash
+# Install Node-RED on Pi
+bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
+
+# Install the custom node
+cd ~/.node-red
+npm install /path/to/Ultrasonic-ML-AI/node-red
+
+# Restart
+node-red-restart
+```
+
+Import an example flow from `node-red/examples/` and configure the model path.
+
+See [node-red/README.md](node-red/README.md) for full details.
 
 ## License
 

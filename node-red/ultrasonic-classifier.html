@@ -1,0 +1,129 @@
+<!-- ultrasonic-classifier node editor UI -->
+
+<script type="text/javascript">
+    RED.nodes.registerType('ultrasonic-classifier', {
+        category: 'analysis',
+        color: '#4B0082',
+        defaults: {
+            name: { value: '' },
+            modelPath: { value: '', required: true },
+            metaPath: { value: '' },
+            pythonPath: { value: 'python3' },
+            inferScript: { value: '' },
+            threshold: { value: 0.80, validate: RED.validators.number() },
+            outDir: { value: '/tmp/ultrasonic-events' }
+        },
+        inputs: 1,
+        outputs: 2,
+        outputLabels: ['abnormal (+ image)', 'normal'],
+        icon: 'font-awesome/fa-microphone',
+        label: function () {
+            return this.name || 'ultrasonic classifier';
+        },
+        paletteLabel: 'ultrasonic classifier',
+        oneditprepare: function () {
+            // Tooltip hints
+            $('#node-input-threshold').attr('title', 'Confidence threshold (0.0-1.0) for abnormal detection');
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="ultrasonic-classifier">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-modelPath"><i class="fa fa-file"></i> Model path</label>
+        <input type="text" id="node-input-modelPath" placeholder="/path/to/ultrasonic_model.pt">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-metaPath"><i class="fa fa-file-text-o"></i> Meta JSON</label>
+        <input type="text" id="node-input-metaPath" placeholder="/path/to/meta.json (auto-detected if blank)">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-pythonPath"><i class="fa fa-terminal"></i> Python</label>
+        <input type="text" id="node-input-pythonPath" placeholder="python3">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-inferScript"><i class="fa fa-code"></i> Infer script</label>
+        <input type="text" id="node-input-inferScript" placeholder="/path/to/ultrasonic_infer.py (auto-detected if blank)">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-threshold"><i class="fa fa-sliders"></i> Threshold</label>
+        <input type="number" id="node-input-threshold" min="0" max="1" step="0.05" placeholder="0.80">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-outDir"><i class="fa fa-folder"></i> Event dir</label>
+        <input type="text" id="node-input-outDir" placeholder="/tmp/ultrasonic-events">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="ultrasonic-classifier">
+    <p>Classifies ultrasonic audio from the <b>Dodotronic Ultramic 384K EVO</b>
+    using a trained MobileNetV2 TorchScript model.</p>
+
+    <h3>Input</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">string</span></dt>
+        <dd>Absolute path to a 1-second WAV file (384 kHz sample rate).</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <ol class="node-ports">
+        <li>Abnormal detection
+            <dl class="message-properties">
+                <dt>payload.prediction <span class="property-type">string</span></dt>
+                <dd>Class label (e.g. "abnormal", "pulsing_unstable").</dd>
+                <dt>payload.confidence <span class="property-type">number</span></dt>
+                <dd>Confidence score (0.0–1.0).</dd>
+                <dt>payload.probabilities <span class="property-type">object</span></dt>
+                <dd>Per-class probability map.</dd>
+                <dt>payload.image <span class="property-type">string</span></dt>
+                <dd>Base64-encoded spectrogram PNG.</dd>
+                <dt>payload.image_path <span class="property-type">string</span></dt>
+                <dd>Path to saved spectrogram file.</dd>
+                <dt>payload.timestamp <span class="property-type">string</span></dt>
+                <dd>ISO 8601 timestamp.</dd>
+            </dl>
+        </li>
+        <li>Normal / below threshold
+            <dl class="message-properties">
+                <dt>payload.prediction <span class="property-type">string</span></dt>
+                <dd>Class label ("normal").</dd>
+                <dt>payload.confidence <span class="property-type">number</span></dt>
+                <dd>Confidence score.</dd>
+                <dt>payload.probabilities <span class="property-type">object</span></dt>
+                <dd>Per-class probability map.</dd>
+                <dt>payload.timestamp <span class="property-type">string</span></dt>
+                <dd>ISO 8601 timestamp. No image attached.</dd>
+            </dl>
+        </li>
+    </ol>
+
+    <h3>Configuration</h3>
+    <ul>
+        <li><b>Model path</b> — Path to the TorchScript <code>.pt</code> model file.</li>
+        <li><b>Meta JSON</b> — Path to <code>meta.json</code>. If blank, looks for it next to the model.</li>
+        <li><b>Python</b> — Python executable (default: <code>python3</code>).</li>
+        <li><b>Infer script</b> — Path to <code>ultrasonic_infer.py</code>. If blank, uses the one bundled in the project.</li>
+        <li><b>Threshold</b> — Minimum confidence (0–1) to flag as abnormal.</li>
+        <li><b>Event dir</b> — Where to save spectrogram PNGs for abnormal events.</li>
+    </ul>
+
+    <h3>Details</h3>
+    <p>This node calls the Python inference script as a subprocess. It expects the
+    Ultramic 384K EVO (384 kHz) and a trained MobileNetV2 model exported via
+    TorchScript. The spectrogram uses a linear scale (not mel) to preserve
+    ultrasonic frequencies (0–192 kHz).</p>
+
+    <p><b>Port 1</b> fires only for abnormal detections (above threshold) and
+    includes the spectrogram image as base64. <b>Port 2</b> fires for normal
+    readings with no image attached.</p>
+</script>
