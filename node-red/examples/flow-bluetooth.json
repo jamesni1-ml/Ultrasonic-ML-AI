@@ -1,0 +1,115 @@
+[
+    {
+        "id": "flow-ble",
+        "type": "tab",
+        "label": "Ultrasonic → Bluetooth",
+        "info": "Monitors WAV files and sends classification results via Bluetooth Low Energy (BLE).\n\nRequires: node-red-contrib-generic-ble\nInstall: npm install node-red-contrib-generic-ble"
+    },
+    {
+        "id": "watch-ble",
+        "type": "watch",
+        "z": "flow-ble",
+        "name": "Watch for WAVs",
+        "files": "/tmp/ultrasonic-incoming/",
+        "recursive": false,
+        "x": 140,
+        "y": 200,
+        "wires": [["filter-wav-ble"]]
+    },
+    {
+        "id": "filter-wav-ble",
+        "type": "switch",
+        "z": "flow-ble",
+        "name": "Filter .wav only",
+        "property": "payload",
+        "rules": [
+            { "t": "regex", "v": "\\.wav$", "vt": "str" }
+        ],
+        "x": 340,
+        "y": 200,
+        "wires": [["classifier-ble"]]
+    },
+    {
+        "id": "classifier-ble",
+        "type": "ultrasonic-classifier",
+        "z": "flow-ble",
+        "name": "Classify Audio",
+        "modelPath": "/home/pi/models/ultrasonic_model.pt",
+        "metaPath": "",
+        "pythonPath": "python3",
+        "inferScript": "/home/pi/ultrasonic_infer.py",
+        "threshold": 0.80,
+        "outDir": "/tmp/ultrasonic-events",
+        "x": 560,
+        "y": 200,
+        "wires": [["ble-prep-abnormal", "debug-abn-ble"], ["ble-prep-normal", "debug-norm-ble"]]
+    },
+    {
+        "id": "ble-prep-abnormal",
+        "type": "function",
+        "z": "flow-ble",
+        "name": "BLE Payload (abnormal)",
+        "func": "// Prepare compact BLE payload for abnormal detection\n// BLE has limited MTU (~20-512 bytes), so we send a compact JSON\n// without the full image. The image stays on disk.\nvar compact = {\n    t: 'ABN',\n    c: msg.payload.prediction,\n    p: Math.round(msg.payload.confidence * 100),\n    ts: Date.now()\n};\nmsg.payload = Buffer.from(JSON.stringify(compact));\nreturn msg;",
+        "outputs": 1,
+        "x": 790,
+        "y": 160,
+        "wires": [["ble-out"]]
+    },
+    {
+        "id": "ble-prep-normal",
+        "type": "function",
+        "z": "flow-ble",
+        "name": "BLE Payload (normal)",
+        "func": "// Compact BLE payload for normal reading\nvar compact = {\n    t: 'OK',\n    p: Math.round(msg.payload.confidence * 100),\n    ts: Date.now()\n};\nmsg.payload = Buffer.from(JSON.stringify(compact));\nreturn msg;",
+        "outputs": 1,
+        "x": 790,
+        "y": 240,
+        "wires": [["ble-out"]]
+    },
+    {
+        "id": "ble-out",
+        "type": "comment",
+        "z": "flow-ble",
+        "name": "→ Connect BLE node here",
+        "info": "Replace this comment with a 'generic ble out' node.\n\nInstall: npm install node-red-contrib-generic-ble\n\nConfigure the BLE node with your GATT characteristic UUID.\nThe payload is a Buffer containing compact JSON:\n  {\"t\":\"ABN\",\"c\":\"abnormal\",\"p\":85,\"ts\":1234567890}\n  {\"t\":\"OK\",\"p\":95,\"ts\":1234567890}",
+        "x": 1020,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "debug-abn-ble",
+        "type": "debug",
+        "z": "flow-ble",
+        "name": "Debug Abnormal",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "complete": "payload",
+        "x": 790,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "debug-norm-ble",
+        "type": "debug",
+        "z": "flow-ble",
+        "name": "Debug Normal",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "complete": "payload",
+        "x": 790,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "comment-ble",
+        "type": "comment",
+        "z": "flow-ble",
+        "name": "Bluetooth (BLE) Output — Ultrasonic UV Panel Monitor",
+        "info": "Sends compact JSON over Bluetooth Low Energy.\n\nBLE has a small MTU, so the image is NOT sent over BLE.\nInstead, only a compact status message is transmitted:\n  ABN: abnormal (class + confidence %)\n  OK:  normal (confidence %)\n\nThe full spectrogram PNG is saved to disk (see Event dir config).\n\nRequires: node-red-contrib-generic-ble\n  npm install node-red-contrib-generic-ble",
+        "x": 300,
+        "y": 80,
+        "wires": []
+    }
+]

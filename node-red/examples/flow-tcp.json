@@ -1,0 +1,137 @@
+[
+    {
+        "id": "flow-tcp",
+        "type": "tab",
+        "label": "Ultrasonic → TCP",
+        "info": "Monitors WAV files and sends classification results over a TCP socket.\n\nAbnormal detections include spectrogram image data.\nNormal readings are sent as JSON without image."
+    },
+    {
+        "id": "watch-tcp",
+        "type": "watch",
+        "z": "flow-tcp",
+        "name": "Watch for WAVs",
+        "files": "/tmp/ultrasonic-incoming/",
+        "recursive": false,
+        "x": 140,
+        "y": 200,
+        "wires": [["filter-wav-tcp"]]
+    },
+    {
+        "id": "filter-wav-tcp",
+        "type": "switch",
+        "z": "flow-tcp",
+        "name": "Filter .wav only",
+        "property": "payload",
+        "rules": [
+            { "t": "regex", "v": "\\.wav$", "vt": "str" }
+        ],
+        "x": 340,
+        "y": 200,
+        "wires": [["classifier-tcp"]]
+    },
+    {
+        "id": "classifier-tcp",
+        "type": "ultrasonic-classifier",
+        "z": "flow-tcp",
+        "name": "Classify Audio",
+        "modelPath": "/home/pi/models/ultrasonic_model.pt",
+        "metaPath": "",
+        "pythonPath": "python3",
+        "inferScript": "/home/pi/ultrasonic_infer.py",
+        "threshold": 0.80,
+        "outDir": "/tmp/ultrasonic-events",
+        "x": 560,
+        "y": 200,
+        "wires": [["json-abnormal-tcp", "debug-abn-tcp"], ["json-normal-tcp", "debug-norm-tcp"]]
+    },
+    {
+        "id": "json-abnormal-tcp",
+        "type": "json",
+        "z": "flow-tcp",
+        "name": "To JSON string",
+        "property": "payload",
+        "action": "str",
+        "pretty": false,
+        "x": 770,
+        "y": 160,
+        "wires": [["tcp-out-abnormal"]]
+    },
+    {
+        "id": "json-normal-tcp",
+        "type": "json",
+        "z": "flow-tcp",
+        "name": "To JSON string",
+        "property": "payload",
+        "action": "str",
+        "pretty": false,
+        "x": 770,
+        "y": 240,
+        "wires": [["tcp-out-normal"]]
+    },
+    {
+        "id": "tcp-out-abnormal",
+        "type": "tcp out",
+        "z": "flow-tcp",
+        "name": "TCP Abnormal",
+        "host": "192.168.1.100",
+        "port": "9000",
+        "beserver": "client",
+        "base64": false,
+        "end": true,
+        "tls": "",
+        "x": 970,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "tcp-out-normal",
+        "type": "tcp out",
+        "z": "flow-tcp",
+        "name": "TCP Normal",
+        "host": "192.168.1.100",
+        "port": "9001",
+        "beserver": "client",
+        "base64": false,
+        "end": true,
+        "tls": "",
+        "x": 970,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "debug-abn-tcp",
+        "type": "debug",
+        "z": "flow-tcp",
+        "name": "Debug Abnormal",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "complete": "payload",
+        "x": 770,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "debug-norm-tcp",
+        "type": "debug",
+        "z": "flow-tcp",
+        "name": "Debug Normal",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "complete": "payload",
+        "x": 770,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "comment-tcp",
+        "type": "comment",
+        "z": "flow-tcp",
+        "name": "TCP Output — Ultrasonic UV Panel Monitor",
+        "info": "Sends JSON results over TCP:\n- Port 9000: Abnormal detections (with base64 image)\n- Port 9001: Normal readings\n\nEdit the TCP out nodes to set your server address/port.",
+        "x": 250,
+        "y": 80,
+        "wires": []
+    }
+]

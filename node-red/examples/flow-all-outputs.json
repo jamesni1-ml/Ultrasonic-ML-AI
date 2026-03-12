@@ -1,0 +1,231 @@
+[
+    {
+        "id": "flow-all",
+        "type": "tab",
+        "label": "Ultrasonic → All Outputs",
+        "info": "Complete monitoring flow with all output options:\nMQTT, TCP, and Bluetooth (BLE).\n\nAbnormal events include spectrogram images.\nNormal events are status-only."
+    },
+    {
+        "id": "inject-test",
+        "type": "inject",
+        "z": "flow-all",
+        "name": "Test WAV path",
+        "props": [
+            { "p": "payload", "vt": "str" }
+        ],
+        "repeat": "",
+        "payload": "/tmp/ultrasonic-incoming/test.wav",
+        "x": 140,
+        "y": 100,
+        "wires": [["classifier-all"]]
+    },
+    {
+        "id": "watch-all",
+        "type": "watch",
+        "z": "flow-all",
+        "name": "Watch for WAVs",
+        "files": "/tmp/ultrasonic-incoming/",
+        "recursive": false,
+        "x": 140,
+        "y": 200,
+        "wires": [["filter-wav-all"]]
+    },
+    {
+        "id": "filter-wav-all",
+        "type": "switch",
+        "z": "flow-all",
+        "name": "Filter .wav only",
+        "property": "payload",
+        "rules": [
+            { "t": "regex", "v": "\\.wav$", "vt": "str" }
+        ],
+        "x": 340,
+        "y": 200,
+        "wires": [["classifier-all"]]
+    },
+    {
+        "id": "classifier-all",
+        "type": "ultrasonic-classifier",
+        "z": "flow-all",
+        "name": "Classify Audio",
+        "modelPath": "/home/pi/models/ultrasonic_model.pt",
+        "metaPath": "",
+        "pythonPath": "python3",
+        "inferScript": "/home/pi/ultrasonic_infer.py",
+        "threshold": 0.80,
+        "outDir": "/tmp/ultrasonic-events",
+        "x": 560,
+        "y": 200,
+        "wires": [
+            ["mqtt-abn-all", "json-abn-all", "ble-prep-abn-all", "debug-abn-all"],
+            ["mqtt-norm-all", "json-norm-all", "ble-prep-norm-all", "debug-norm-all"]
+        ]
+    },
+
+    {
+        "id": "comment-abnormal",
+        "type": "comment",
+        "z": "flow-all",
+        "name": "── ABNORMAL outputs (Port 1) ──",
+        "x": 800,
+        "y": 60,
+        "wires": []
+    },
+
+    {
+        "id": "mqtt-abn-all",
+        "type": "mqtt out",
+        "z": "flow-all",
+        "name": "MQTT Abnormal",
+        "topic": "uv/panels/abnormal",
+        "qos": "1",
+        "retain": "true",
+        "broker": "mqtt-broker-all",
+        "x": 800,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "json-abn-all",
+        "type": "json",
+        "z": "flow-all",
+        "name": "→ JSON",
+        "property": "payload",
+        "action": "str",
+        "x": 770,
+        "y": 140,
+        "wires": [["tcp-abn-all"]]
+    },
+    {
+        "id": "tcp-abn-all",
+        "type": "tcp out",
+        "z": "flow-all",
+        "name": "TCP Abnormal",
+        "host": "192.168.1.100",
+        "port": "9000",
+        "beserver": "client",
+        "base64": false,
+        "end": true,
+        "x": 960,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "ble-prep-abn-all",
+        "type": "function",
+        "z": "flow-all",
+        "name": "BLE (abnormal)",
+        "func": "var compact = {\n    t: 'ABN',\n    c: msg.payload.prediction,\n    p: Math.round(msg.payload.confidence * 100),\n    ts: Date.now()\n};\nmsg.payload = Buffer.from(JSON.stringify(compact));\nreturn msg;",
+        "outputs": 1,
+        "x": 790,
+        "y": 180,
+        "wires": [["ble-out-all"]]
+    },
+    {
+        "id": "debug-abn-all",
+        "type": "debug",
+        "z": "flow-all",
+        "name": "Debug Abnormal",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "complete": "payload",
+        "x": 800,
+        "y": 220,
+        "wires": []
+    },
+
+    {
+        "id": "comment-normal",
+        "type": "comment",
+        "z": "flow-all",
+        "name": "── NORMAL outputs (Port 2) ──",
+        "x": 800,
+        "y": 270,
+        "wires": []
+    },
+
+    {
+        "id": "mqtt-norm-all",
+        "type": "mqtt out",
+        "z": "flow-all",
+        "name": "MQTT Normal",
+        "topic": "uv/panels/normal",
+        "qos": "0",
+        "retain": "false",
+        "broker": "mqtt-broker-all",
+        "x": 800,
+        "y": 310,
+        "wires": []
+    },
+    {
+        "id": "json-norm-all",
+        "type": "json",
+        "z": "flow-all",
+        "name": "→ JSON",
+        "property": "payload",
+        "action": "str",
+        "x": 770,
+        "y": 350,
+        "wires": [["tcp-norm-all"]]
+    },
+    {
+        "id": "tcp-norm-all",
+        "type": "tcp out",
+        "z": "flow-all",
+        "name": "TCP Normal",
+        "host": "192.168.1.100",
+        "port": "9001",
+        "beserver": "client",
+        "base64": false,
+        "end": true,
+        "x": 960,
+        "y": 350,
+        "wires": []
+    },
+    {
+        "id": "ble-prep-norm-all",
+        "type": "function",
+        "z": "flow-all",
+        "name": "BLE (normal)",
+        "func": "var compact = {\n    t: 'OK',\n    p: Math.round(msg.payload.confidence * 100),\n    ts: Date.now()\n};\nmsg.payload = Buffer.from(JSON.stringify(compact));\nreturn msg;",
+        "outputs": 1,
+        "x": 790,
+        "y": 390,
+        "wires": [["ble-out-all"]]
+    },
+    {
+        "id": "debug-norm-all",
+        "type": "debug",
+        "z": "flow-all",
+        "name": "Debug Normal",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "complete": "payload",
+        "x": 800,
+        "y": 430,
+        "wires": []
+    },
+
+    {
+        "id": "ble-out-all",
+        "type": "comment",
+        "z": "flow-all",
+        "name": "→ Connect BLE node here (npm install node-red-contrib-generic-ble)",
+        "x": 1090,
+        "y": 290,
+        "wires": []
+    },
+    {
+        "id": "mqtt-broker-all",
+        "type": "mqtt-broker",
+        "name": "Local MQTT",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "ultrasonic-pi",
+        "autoConnect": true,
+        "keepalive": "60",
+        "cleansession": true
+    }
+]
